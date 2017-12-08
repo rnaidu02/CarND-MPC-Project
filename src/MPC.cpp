@@ -6,8 +6,15 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N = 70;
-double dt = 0.05;  //seconds
+// N, dt, and T are hyperparameters you will need to tune for each model predictive controller you build.
+// However, there are some general guidelines. T should be as large as possible, while dt should be as small as possible
+// If the N is too high, there would be high computational cost and the compute required for MPC::slove() may cause in delayed response
+// to the actuators
+
+// A good approach to setting N, dt, and T is to first determine a reasonable range for T and then tune dt and N appropriately,
+// keeping the effect of each in mind.
+size_t N = 100;
+double dt = 0.1;  //seconds
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -20,6 +27,38 @@ double dt = 0.05;  //seconds
 //
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
+
+// Add multipliers for different cost components
+int nCostMultiplierCTE = 1;
+int nCostMultiplierEPSI = 1;
+int nCostMultiplierV = 1;
+int nCostMultiplierDELTA = 100;
+int nCostMultiplierACC = 1;
+int nCostMultiplierDELTA_diff = 1;
+int nCostMultiplierACC_diff = 1;
+
+//define the offsets for each component in vars Vector
+// Offsets when N = 5 as given in the lesson https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/d3df10cc-797a-47ae-82c9-a39a597870d9
+// Note Ipopt expects all the constraints and variables as vectors. For example, suppose N is 5, then the structure of vars a 38-element vector:
+/*
+vars[0],...,vars[4] -> [x ​1 ​​ ,....,x ​5 ​​ ]
+vars[5],...,vars[9] -> [y ​1 ​​ ,....,y ​5 ​​ ]
+vars[10],...,vars[14] -> [ψ ​1 ​​ ,....,ψ ​5 ​​ ]
+vars[15],...,vars[19] -> [v ​1 ​​ ,....,v ​5 ​​ ]
+vars[20],...,vars[24] -> [cte ​1 ​​ ,....,cte ​5 ​​ ]
+vars[25],...,vars[29] -> [eψ ​1 ​​ ,....,eψ ​5 ​​ ]
+vars[30],...,vars[33] -> [δ ​1 ​​ ,....,δ ​4 ​​ ]
+vars[34],...,vars[37] -> [a ​1 ​​ ,....,a ​4 ​​ ]
+*/
+const int x_start = 0;
+const int y_start = x_start + N;
+const int psi_start = y_start + N;
+const int v_start = psi_start + N;
+const int cte_start = v_start + N;
+const int epsi_start = cte_start + N;
+const int delta_start = epsi_start + N;
+const int a_start = delta_start + N - 1;
+
 
 class FG_eval {
  public:
@@ -53,7 +92,7 @@ class FG_eval {
     // Cost related to control input
 
     // Use of actuators (only N-1 measures)
-    // Only take care of delta and accleration
+    // Only take care of delta (steeing angle) and accleration
     // Ref https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/5df9cd1c-b111-48e5-857c-7547f82dac0c
     for (int t = 1; t < N-1; t++) {
         fg[0] += 100*CppAD::pow(vars[delta_start+t], 2);
@@ -157,6 +196,15 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   for (int i = 0; i < n_vars; i++) {
     vars[i] = 0;
   }
+
+  //Fill in x, y, psi, v, cte, and epsi from state vector from transformed waypoints
+  double x = state[0];
+  double y = state[1];
+  double psi = state[3];
+  double v = state[4];
+  double cte = state[5];
+  double epsi = state[6];
+
   // Set the initial variable values
   vars[x_start] = x;
   vars[y_start] = y;
@@ -170,13 +218,14 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // TODO: Set lower and upper limits for variables.
   // Set all non-actuators upper and lowerlimits
   // to the max negative and positive values.
+  // All od x, y, psi, v values
   for (int i = 0; i < delta_start; i++) {
     vars_lowerbound[i] = -1.0e19;
     vars_upperbound[i] = 1.0e19;
   }
 
   // The upper and lower limits of delta are set to -25 and 25
-  // degrees (values in radians).
+  // degrees (values in radians  -25*pi/180 to 25*pi/180).
   // NOTE: Feel free to change this to something else.
   for (int i = delta_start; i < a_start; i++) {
     vars_lowerbound[i] = -0.436332;
@@ -185,6 +234,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // Acceleration/decceleration upper and lower limits.
   // NOTE: Feel free to change this to something else.
+  // -1: Full brake, 1: Full acceleration
   for (int i = a_start; i < n_vars; i++) {
     vars_lowerbound[i] = -1.0;
     vars_upperbound[i] = 1.0;
@@ -255,5 +305,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-  return {solution.x[0], solution.x[1]};
+  auto x1 = {solution.x[0], solution.x[1]};
+  return x1;
 }

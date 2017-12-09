@@ -93,6 +93,39 @@ int main() {
           double v = j[1]["speed"];
 
           std::cout << ptsx.size() << " ; " << ptsy.size() << std::endl;
+          std::cout << "x= " << px << " y = " << py << " psi = " << psi << std::endl;
+
+          uint nWayPoints = ptsx.size();
+          Eigen::VectorXd xcarVals(nWayPoints);
+          Eigen::VectorXd ycarVals(nWayPoints);
+          vector<double> car_pos(3);
+          car_pos[0] = px;
+          car_pos[1] = py;
+          car_pos[2] = psi;
+
+          for (uint i = 0; i < nWayPoints; i++){
+              vector<double> global_pos(2);
+              global_pos[0] = ptsx[i];
+              global_pos[1] = ptsy[i];
+              vector<double> local_xy = mpc.MapToCarPos(global_pos, car_pos);
+              xcarVals[i] = local_xy[0];
+              ycarVals[i] = local_xy[1];
+          }
+
+          //Fit the converted local x and y way points to a poyfit to find 3rd odrer poynomial factors
+          Eigen::VectorXd polyfit_coeff = polyfit(xcarVals, ycarVals, 3);
+
+          //move the reference to origin
+          px = 0;
+          py = 0;
+          psi = 0;
+          // TODO: calculate the cross track error
+          double cte = polyeval(polyfit_coeff, px) - py;
+          // TODO: calculate the orientation error
+          double epsi = psi - atan(polyfit_coeff[1]);
+
+          Eigen::VectorXd  state_vector(6);
+          state_vector << px, py, psi, v, cte, epsi;
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -102,6 +135,10 @@ int main() {
           */
           double steer_value;
           double throttle_value;
+
+          vector<double> ret_actuators = mpc.Solve(state_vector, polyfit_coeff);
+          steer_value = -ret_actuators[0];
+          throttle_value = ret_actuators[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.

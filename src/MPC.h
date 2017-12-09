@@ -16,8 +16,8 @@ class MPC {
   // Return the first actuatotions.
   vector<double> Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs);
 
-  // Function to transform waypoints frm global coordinates to vehicle coordinates
-  
+  // Function to transform waypoints from global coordinates to vehicle coordinates
+  vector<double> MapToCarPos(vector<double> globalPos, vector<double> carPos);
 };
 
 #endif /* MPC_H */

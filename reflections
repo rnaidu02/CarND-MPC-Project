@@ -1,0 +1,11 @@
+reflections:
+
+1. when N = 40; The cost is going is too high and the angle is erro nous. May be I should reduce the cost factors and see.
+    When the cost multipliers reduce by 1/10th, it went fine to some extent but the angles went bad (more than 50 degreees).
+
+    2. It looks like N play a bigger value. Set the N to 20 so that it is looking into 2 sec of data (dt = 0.1)
+      Here it is going fine.
+
+3. When N = 40 and dt = 0.05 sec (T = 2 sec). Here the throttle is always 1, and steering angle is constant at 0.19
+
+4. When N = 20, dt = 0.1 , v = 40 it is fine. However whent he speed is 60, then it is going rouge with high steeing values (25 deg) and throttle 1

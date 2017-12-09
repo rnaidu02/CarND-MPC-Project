@@ -13,8 +13,12 @@ using CppAD::AD;
 
 // A good approach to setting N, dt, and T is to first determine a reasonable range for T and then tune dt and N appropriately,
 // keeping the effect of each in mind.
-size_t N = 100;
+// Keeping the T to be 2 seconds - why?
+size_t N = 20;
 double dt = 0.1;  //seconds
+
+// Set the reference valocity to 40
+double ref_v = 60;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -29,12 +33,12 @@ double dt = 0.1;  //seconds
 const double Lf = 2.67;
 
 // Add multipliers for different cost components
-int nCostMultiplierCTE = 1;
-int nCostMultiplierEPSI = 1;
+int nCostMultiplierCTE = 200;
+int nCostMultiplierEPSI = 100;
 int nCostMultiplierV = 1;
-int nCostMultiplierDELTA = 100;
+int nCostMultiplierDELTA = 200;
 int nCostMultiplierACC = 1;
-int nCostMultiplierDELTA_diff = 1;
+int nCostMultiplierDELTA_diff = 10;
 int nCostMultiplierACC_diff = 1;
 
 //define the offsets for each component in vars Vector
@@ -76,17 +80,18 @@ class FG_eval {
     // Any additions to the cost should be added to `fg[0]`.
     fg[0] = 0;
 
+
     // Reference State Cost
     // TODO: Define the cost related the reference state and
     // any anything you think may be beneficial.
-    for (int t = 1; t < N; t++) {
+    for (uint t = 1; t < N; t++) {
         // Add cost related to reference state (cte and espilon error)
         // https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/1528b1f9-3373-44bd-b431-b6f61668bed2
-        fg[0] += CppAD::pow(vars[cte_start+t], 2);
-        fg[0] += CppAD::pow(vars[epsi_start+t], 2);
+        fg[0] += nCostMultiplierCTE*CppAD::pow(vars[cte_start+t], 2);
+        fg[0] += nCostMultiplierEPSI*CppAD::pow(vars[epsi_start+t], 2);
         // Add the cost dealing with stopping (incentive to keep moving the vehicle at desired speed)
         //Ref https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/554a16a1-cdf1-408b-a431-4a84689a4fba
-        fg[0] += CppAD::pow(vars[v_start+t] - ref_v , 2);
+        fg[0] += nCostMultiplierV*CppAD::pow(vars[v_start+t] - ref_v , 2);
     }
 
     // Cost related to control input
@@ -94,17 +99,17 @@ class FG_eval {
     // Use of actuators (only N-1 measures)
     // Only take care of delta (steeing angle) and accleration
     // Ref https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/5df9cd1c-b111-48e5-857c-7547f82dac0c
-    for (int t = 1; t < N-1; t++) {
-        fg[0] += 100*CppAD::pow(vars[delta_start+t], 2);
-        fg[0] += 20*CppAD::pow(vars[a_start + t], 2);
+    for (uint t = 1; t < N-1; t++) {
+        fg[0] += nCostMultiplierDELTA*100*CppAD::pow(vars[delta_start+t], 2);
+        fg[0] += nCostMultiplierACC*20*CppAD::pow(vars[a_start + t], 2);
     }
 
     // Only take care of change in delta and a (current vs. prev measurement)
     // Ref https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/5df9cd1c-b111-48e5-857c-7547f82dac0c
-    for (int t = 1; t < N-2; t++) {
+    for (uint t = 1; t < N-2; t++) {
         // Ref https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/d6909689-a76f-4eb9-9439-0e885679ba59
-        fg[0] += 500*CppAD::pow(vars[delta_start+t+1] - vars[delta_start+t], 2);
-        fg[0] += 20*CppAD::pow(vars[a_start+t+1] - vars[a_start+t], 2);
+        fg[0] += nCostMultiplierDELTA_diff*CppAD::pow(vars[delta_start+t+1] - vars[delta_start+t], 2);
+        fg[0] += nCostMultiplierACC_diff*CppAD::pow(vars[a_start+t+1] - vars[a_start+t], 2);
     }
 
     //
@@ -125,7 +130,7 @@ class FG_eval {
     fg[1 + epsi_start] = vars[epsi_start];
 
     // The rest of the constraints
-    for (int t = 1; t < N; t++) {
+    for (uint t = 1; t < N; t++) {
 
       // Values at time t
       // ref https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/d26b8460-653f-4479-bc24-68bb62c146ba
@@ -148,8 +153,8 @@ class FG_eval {
       AD<double> delta0 = vars[delta_start + t - 1];
       AD<double> a0 = vars[a_start + t - 1];
 
-      AD<double> f0 = coeffs[0] + coeffs[1] * x0;
-      AD<double> psides0 = CppAD::atan(coeffs[1]);
+      AD<double> f0 = coeffs[0] + coeffs[1] * x0 +  + coeffs[2] * CppAD::pow(x0, 2) + + coeffs[3] * CppAD::pow(x0, 3);
+      AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2] * x0 + 3 * coeffs[3] * CppAD::pow(x0, 2));
 
       // Here's `x` to get you started.
       // The idea here is to constraint this value to be 0.
@@ -178,7 +183,6 @@ MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-  size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   // TODO: Set the number of model variables (includes both states and inputs).
@@ -193,17 +197,17 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
   Dvector vars(n_vars);
-  for (int i = 0; i < n_vars; i++) {
+  for (uint i = 0; i < n_vars; i++) {
     vars[i] = 0;
   }
 
   //Fill in x, y, psi, v, cte, and epsi from state vector from transformed waypoints
   double x = state[0];
   double y = state[1];
-  double psi = state[3];
-  double v = state[4];
-  double cte = state[5];
-  double epsi = state[6];
+  double psi = state[2];
+  double v = state[3];
+  double cte = state[4];
+  double epsi = state[5];
 
   // Set the initial variable values
   vars[x_start] = x;
@@ -235,7 +239,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Acceleration/decceleration upper and lower limits.
   // NOTE: Feel free to change this to something else.
   // -1: Full brake, 1: Full acceleration
-  for (int i = a_start; i < n_vars; i++) {
+  for (uint i = a_start; i < n_vars; i++) {
     vars_lowerbound[i] = -1.0;
     vars_upperbound[i] = 1.0;
   }
@@ -244,7 +248,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Should be 0 besides initial state.
   Dvector constraints_lowerbound(n_constraints);
   Dvector constraints_upperbound(n_constraints);
-  for (int i = 0; i < n_constraints; i++) {
+  for (uint i = 0; i < n_constraints; i++) {
     constraints_lowerbound[i] = 0;
     constraints_upperbound[i] = 0;
   }
@@ -305,6 +309,30 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-  auto x1 = {solution.x[0], solution.x[1]};
+  auto x1 = {solution.x[delta_start], solution.x[a_start]};
   return x1;
+}
+
+/*
+ * Convert the global map pos to car map
+ * http://farside.ph.utexas.edu/teaching/336k/Newtonhtml/node153.html
+   https://www.miniphysics.com/coordinate-transformation-under-rotation.html
+*/
+vector<double> MPC::MapToCarPos(vector<double> globalPos, vector<double> carPos){
+    double car_x = carPos[0];
+    double car_y = carPos[1];
+    double car_psi = carPos[2];
+
+    double global_x = globalPos[0];
+    double global_y = globalPos[1];
+
+    double x = global_x - car_x;
+    double y = global_y - car_y;
+
+    double x_dot = x*cos(car_psi)+y*sin(car_psi);
+    double y_dot = -x*sin(car_psi)+y*cos(car_psi);
+
+    auto ret = {x_dot, y_dot};
+
+    return ret;
 }

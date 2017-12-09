@@ -14,11 +14,11 @@ using CppAD::AD;
 // A good approach to setting N, dt, and T is to first determine a reasonable range for T and then tune dt and N appropriately,
 // keeping the effect of each in mind.
 // Keeping the T to be 2 seconds - why?
-size_t N = 30;
+size_t N = 9;
 double dt = 0.1;  //seconds
 
 // Set the reference valocity to 40
-double ref_v = 40;
+double ref_v = 60;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -36,8 +36,8 @@ const double Lf = 2.67;
 int nCostMultiplierCTE = 2000;
 int nCostMultiplierEPSI = 1500;
 int nCostMultiplierV = 10;
-int nCostMultiplierDELTA = 20000;
-int nCostMultiplierACC = 10;
+int nCostMultiplierDELTA = 2000000;
+int nCostMultiplierACC = 200;
 int nCostMultiplierDELTA_diff = 100;
 int nCostMultiplierACC_diff = 10;
 
@@ -100,8 +100,8 @@ class FG_eval {
     // Only take care of delta (steeing angle) and accleration
     // Ref https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/5df9cd1c-b111-48e5-857c-7547f82dac0c
     for (uint t = 1; t < N-1; t++) {
-        fg[0] += nCostMultiplierDELTA*100*CppAD::pow(vars[delta_start+t], 2);
-        fg[0] += nCostMultiplierACC*20*CppAD::pow(vars[a_start + t], 2);
+        fg[0] += nCostMultiplierDELTA*CppAD::pow(vars[delta_start+t], 2);
+        fg[0] += nCostMultiplierACC*CppAD::pow(vars[a_start + t], 2);
     }
 
     // Only take care of change in delta and a (current vs. prev measurement)
@@ -235,9 +235,10 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // The upper and lower limits of delta are set to -25 and 25
   // degrees (values in radians  -25*pi/180 to 25*pi/180).
   // NOTE: Feel free to change this to something else.
+  double delta_limit = 25*M_PI/180;
   for (int i = delta_start; i < a_start; i++) {
-    vars_lowerbound[i] = -0.436332;
-    vars_upperbound[i] = 0.436332;
+    vars_lowerbound[i] = -delta_limit; //-0.436332;
+    vars_upperbound[i] = delta_limit; //0.436332;
   }
 
   // Acceleration/decceleration upper and lower limits.
@@ -316,6 +317,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   vector<double> x1 = {solution.x[delta_start], solution.x[a_start]};
 
   // Now add the mpc x and y, so that they can be used to display the way points on the emulator
+  // Solver only calculates the points only from time t=1 and until N
   for (uint i = 0; i < N-1; i++){
       x1.push_back(solution.x[x_start+i+1]);
       x1.push_back(solution.x[y_start+i+1]);
@@ -346,4 +348,20 @@ vector<double> MPC::MapToCarPos(vector<double> globalPos, vector<double> carPos)
     auto ret = {x_dot, y_dot};
 
     return ret;
+}
+
+// Function to reduce the throttle if the steering angle is more than .15 rad (~ 14 degress)
+double MPC::MapThrottleToSteeringAngle(double absSteeringAngle){
+    double throttle = 1.0;
+    double angleLimit = 0.25; //rad
+    double minThrottle = 0.3;
+
+    if ((absSteeringAngle > angleLimit)){
+        throttle = 1.0 - (absSteeringAngle - angleLimit)*(1 - minThrottle)/((25*M_PI/180) - angleLimit);
+
+        //std::cout << "Mod throttle:" << throttle << " " << absSteeringAngle << " " << angleLimit << std::endl;
+    }
+
+
+    return throttle;
 }

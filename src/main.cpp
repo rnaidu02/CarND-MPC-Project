@@ -92,8 +92,8 @@ int main() {
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
 
-          std::cout << ptsx.size() << " ; " << ptsy.size() << std::endl;
-          std::cout << "x= " << px << " y = " << py << " psi = " << psi << std::endl;
+          //std::cout << ptsx.size() << " ; " << ptsy.size() << std::endl;
+          //std::cout << "x= " << px << " y = " << py << " psi = " << psi << std::endl;
 
           uint nWayPoints = ptsx.size();
           Eigen::VectorXd xcarVals(nWayPoints);
@@ -116,7 +116,7 @@ int main() {
           //Fit the converted local x and y way points to a poyfit to find 3rd odrer poynomial factors
           Eigen::VectorXd polyfit_coeff = polyfit(xcarVals, ycarVals, 3);
 
-          //move the reference to origin
+          //move the reference to origin (origin being the car location)
           px = 0;
           py = 0;
           psi = 0;
@@ -144,8 +144,12 @@ int main() {
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
+
+          //Apply the throttle factor to the throttle (to reduce the speed where the steeing anle is high)
+          double throttle_factor = mpc.MapThrottleToSteeringAngle(abs(steer_value));
+          throttle_factor = 1; //No correction seems required after reducing N to under 10
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = throttle_value;
+          msgJson["throttle"] = throttle_value*throttle_factor;
 
           //Display the MPC predicted trajectory
           vector<double> mpc_x_vals;

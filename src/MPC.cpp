@@ -14,11 +14,11 @@ using CppAD::AD;
 // A good approach to setting N, dt, and T is to first determine a reasonable range for T and then tune dt and N appropriately,
 // keeping the effect of each in mind.
 // Keeping the T to be 2 seconds - why?
-size_t N = 20;
+size_t N = 30;
 double dt = 0.1;  //seconds
 
 // Set the reference valocity to 40
-double ref_v = 60;
+double ref_v = 40;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -33,13 +33,13 @@ double ref_v = 60;
 const double Lf = 2.67;
 
 // Add multipliers for different cost components
-int nCostMultiplierCTE = 200;
-int nCostMultiplierEPSI = 100;
-int nCostMultiplierV = 1;
-int nCostMultiplierDELTA = 200;
-int nCostMultiplierACC = 1;
-int nCostMultiplierDELTA_diff = 10;
-int nCostMultiplierACC_diff = 1;
+int nCostMultiplierCTE = 2000;
+int nCostMultiplierEPSI = 1500;
+int nCostMultiplierV = 10;
+int nCostMultiplierDELTA = 20000;
+int nCostMultiplierACC = 10;
+int nCostMultiplierDELTA_diff = 100;
+int nCostMultiplierACC_diff = 10;
 
 //define the offsets for each component in vars Vector
 // Offsets when N = 5 as given in the lesson https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/d3df10cc-797a-47ae-82c9-a39a597870d9
@@ -153,8 +153,12 @@ class FG_eval {
       AD<double> delta0 = vars[delta_start + t - 1];
       AD<double> a0 = vars[a_start + t - 1];
 
-      AD<double> f0 = coeffs[0] + coeffs[1] * x0 +  + coeffs[2] * CppAD::pow(x0, 2) + + coeffs[3] * CppAD::pow(x0, 3);
+      AD<double> f0 = coeffs[0] + coeffs[1] * x0 +  + coeffs[2] * CppAD::pow(x0, 2) + coeffs[3] * CppAD::pow(x0, 3);
       AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2] * x0 + 3 * coeffs[3] * CppAD::pow(x0, 2));
+
+      // 2nd degree polynomial may reduce errors for cte
+      //AD<double> f0 = coeffs[0] + coeffs[1] * x0 +  + coeffs[2] * CppAD::pow(x0, 2) ;
+      //AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2] * x0);
 
       // Here's `x` to get you started.
       // The idea here is to constraint this value to be 0.
@@ -309,7 +313,14 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-  auto x1 = {solution.x[delta_start], solution.x[a_start]};
+  vector<double> x1 = {solution.x[delta_start], solution.x[a_start]};
+
+  // Now add the mpc x and y, so that they can be used to display the way points on the emulator
+  for (uint i = 0; i < N-1; i++){
+      x1.push_back(solution.x[x_start+i+1]);
+      x1.push_back(solution.x[y_start+i+1]);
+  }
+
   return x1;
 }
 

@@ -9,3 +9,7 @@ reflections:
 3. When N = 40 and dt = 0.05 sec (T = 2 sec). Here the throttle is always 1, and steering angle is constant at 0.19
 
 4. When N = 20, dt = 0.1 , v = 40 it is fine. However whent he speed is 60, then it is going rouge with high steeing values (25 deg) and throttle 1
+
+5. Did experimants with degree of polynomial (which may impact the cte and delta)
+
+3. At curves way point translation is going rouge (going to the edges and outside of the road)at speeds 60 (working ok with speed 40). Something to look for what is the contributing factor for the

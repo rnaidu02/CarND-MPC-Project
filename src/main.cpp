@@ -103,6 +103,7 @@ int main() {
           car_pos[1] = py;
           car_pos[2] = psi;
 
+          // Translate waypoints from global to relative to car position
           for (uint i = 0; i < nWayPoints; i++){
               vector<double> global_pos(2);
               global_pos[0] = ptsx[i];
@@ -153,6 +154,11 @@ int main() {
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
+          for (uint i = 2; i < ret_actuators.size(); i=i+2){
+              mpc_x_vals.push_back(ret_actuators[i]);
+              mpc_y_vals.push_back(ret_actuators[i+1]);
+          }
+
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
 
@@ -162,6 +168,10 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
+          for (uint i = 0; i < nWayPoints; i++){
+              next_x_vals.push_back(xcarVals[i]);
+              next_y_vals.push_back(ycarVals[i]);
+          }
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;

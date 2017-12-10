@@ -4,12 +4,53 @@ Self-Driving Car Engineer Nanodegree Program
 ## --- Reflections ---
 
 ### The model
+MPC is designed using Global Kinematic Model that predicts the next state (at state t+1) from state vector at t and the actuator values.
+Here is the model with the update equations for the next state given the current state
+
+![Model picture](/imgs/model_img.png)
+
+The state that is passed to the model consists of the following params
+
+`x, y, psi, velocity, cte, and epsi`
+![State picture](/imgs/state_img.png)
+
+Here are the actuators with constraints
+![acuators picture](/imgs/actuators_img.png)
+
 
 ### Timestep Length and Elapsed Duration (N & dt)
+I chose timestep Length (N) of 9 and elapsed duration (dt) of 0.1 sec (which amount to total time of close to a second).
+
+The reason I chose dt to be be 0.1 sec because the time lapse between the predicted actuators and the actuator data used inside the emulator is about 100 msec. This way the predicted values can be used in the next update on the emulator screen without delay.
+
+I chose 9 because it is not too high where the number of calculations will be too many for the solver to compute and and the latency will be high.
+
+The other values for N are 15, 20 and 30. With these the MPC way points are not necessarily match with the global way points supplied by the emulator. For this reason I reduced them little by little and at N = 9, the MPC worked better up to the speeds of 60 mph.
+
+The other values tried for dt are 0.05 and 0.2. With these 0.2 sec worked ok, but these are not doing any better than dt = 0.1 sec.
+
+
 
 ### Polynomial Fitting and MPC preprocessing
 
+The following preprocessing was done for the way points (ptsx, ptsy) coming from the emulator. These are in global coordinate system and need to be converted to car's coordinate system so that all of the measurements in same coordinate system for the MPC solver to solve.
+
+`double x_dot = x*cos(car_psi)+y*sin(car_psi);`
+
+`double y_dot = -x*sin(car_psi)+y*cos(car_psi);`
+
+Once the way points are converted to car's coordinate system, the are passed to 3rd degree polynomial fit function inside `main.cpp` to get the coefficients.
+
+`Eigen::VectorXd polyfit_coeff = polyfit(xcarVals, ycarVals, 3);`
+
+These coefficients are then used to determine the cte, epsi, and also used inside cost function `FG_eval` to find the cost for cte and epsi that in turn used inside the `ipopt solver` to predict the steering angle and throttle.
+
+`          vector<double> ret_actuators = mpc.Solve(state_vector, polyfit_coeff);
+`
+
+
 ### Model Predictive Control with Latency
+MPC controller receives the path coordinates from the emulator. MPC controller then converts them to car's coordinate system to predict the actuator values and also the MPC waypoints. MPC controller wait `100 msec` before sending the actuators to the emulator. However MPC controller has a `time step (dt) of 100 msec` and predicts the next way points and corresponding actuators. Since both the delay and the time difference between time steps within vars is 100 msec, the system is synchronized (between the predicted values and when they are received on the emulator side). I've played with receiving actuator values at different time steps and found that the current code inside `MPC::Solve()` worked correctly.
 
 ---
 

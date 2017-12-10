@@ -24,6 +24,7 @@ epsi1 = ((psi0 - psides0) + v0 * delta0 / Lf * dt);
 #### The state that is passed to the model consists of the following params
 
 `x, y, psi, velocity, cte, and epsi`
+
 ![State picture](/imgs/state_img.png)
 ```
 double x = state[0];

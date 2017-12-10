@@ -1,6 +1,16 @@
 # CarND-Controls-MPC
 Self-Driving Car Engineer Nanodegree Program
 
+## --- Reflections ---
+
+### The model
+
+### Timestep Length and Elapsed Duration (N & dt)
+
+### Polynomial Fitting and MPC preprocessing
+
+### Model Predictive Control with Latency
+
 ---
 
 ## Dependencies

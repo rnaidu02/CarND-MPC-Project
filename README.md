@@ -5,18 +5,58 @@ Self-Driving Car Engineer Nanodegree Program
 
 ### The model
 MPC is designed using Global Kinematic Model that predicts the next state (at state t+1) from state vector at t and the actuator values.
-Here is the model with the update equations for the next state given the current state
+#### Here is the model with the update equations for the next state given the current state
 
 ![Model picture](/imgs/model_img.png)
 
-The state that is passed to the model consists of the following params
+Here is the code snippet inside MPC.cpp
+```
+// TODO: Setup the rest of the model constraints
+// Ref https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/ee21948d-7fad-4821-b61c-0d69bbfcc425
+x1 = (x0 + v0 * CppAD::cos(psi0) * dt);
+y1 = (y0 + v0 * CppAD::sin(psi0) * dt);
+psi1  (psi0 + v0 * delta0 / Lf * dt);
+v1 = (v0 + a0 * dt);
+cte1 = ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
+epsi1 = ((psi0 - psides0) + v0 * delta0 / Lf * dt);
+```
+
+#### The state that is passed to the model consists of the following params
 
 `x, y, psi, velocity, cte, and epsi`
 ![State picture](/imgs/state_img.png)
+```
+double x = state[0];
+double y = state[1];
+double psi = state[2];
+double v = state[3];
+double cte = state[4];
+double epsi = state[5];
+```
 
-Here are the actuators with constraints
+#### Here are the actuators with constraints
 ![acuators picture](/imgs/actuators_img.png)
 
+One other important component of MPC model is the cost that the solver depends on to optimize the actuator values. Here is the cost formula that is used.
+![Cost picture](/imgs/cost_img.png)
+
+The costs considered in the MPC model are the following:
+* State cost (CTE, ePsi, velocity)
+* Actuator Costs (delta, acceleration)
+* Change in actuator costs (difference between prev and current values of delta and acceleration)
+
+I've experimented with diffferent values for the costs multipliers (which one should get more weight towards calculating the cost). What I've observed is that more weight is given to steering value, difference in steering value and CTE. It make sense also to have given weight to the above three as they are key to have the car on the middle of the track and turn the steering angle appropriately.
+
+The multipliers for the cost elements
+```
+ nCostMultiplierCTE = 200;
+ nCostMultiplierEPSI = 15;
+ nCostMultiplierV = 10;
+ nCostMultiplierDELTA = 2000;
+ nCostMultiplierACC = 1;
+ nCostMultiplierDELTA_diff = 10;
+ nCostMultiplierACC_diff = 1;
+ ```
 
 ### Timestep Length and Elapsed Duration (N & dt)
 I chose timestep Length (N) of 9 and elapsed duration (dt) of 0.1 sec (which amount to total time of close to a second).
@@ -25,7 +65,7 @@ The reason I chose dt to be be 0.1 sec because the time lapse between the predic
 
 I chose 9 because it is not too high where the number of calculations will be too many for the solver to compute and and the latency will be high.
 
-The other values for N are 15, 20 and 30. With these the MPC way points are not necessarily match with the global way points supplied by the emulator. For this reason I reduced them little by little and at N = 9, the MPC worked better up to the speeds of 60 mph.
+The other values for N are 15, 20 and 30. With these the MPC way points are not necessarily match with the global way points supplied by the emulator. During the run, the green dots (MPC predicted way points) are only matching with yellow line (emulator supplied way points) around 7 steps. For this reason I reduced them little by little and at N = 9, the MPC worked better up to the speeds of 60 mph.
 
 The other values tried for dt are 0.05 and 0.2. With these 0.2 sec worked ok, but these are not doing any better than dt = 0.1 sec.
 
@@ -34,19 +74,21 @@ The other values tried for dt are 0.05 and 0.2. With these 0.2 sec worked ok, bu
 ### Polynomial Fitting and MPC preprocessing
 
 The following preprocessing was done for the way points (ptsx, ptsy) coming from the emulator. These are in global coordinate system and need to be converted to car's coordinate system so that all of the measurements in same coordinate system for the MPC solver to solve.
-
-`double x_dot = x*cos(car_psi)+y*sin(car_psi);`
-
-`double y_dot = -x*sin(car_psi)+y*cos(car_psi);`
-
+```
+double x_dot = x*cos(car_psi)+y*sin(car_psi);
+double y_dot = -x*sin(car_psi)+y*cos(car_psi);
+```
 Once the way points are converted to car's coordinate system, the are passed to 3rd degree polynomial fit function inside `main.cpp` to get the coefficients.
 
-`Eigen::VectorXd polyfit_coeff = polyfit(xcarVals, ycarVals, 3);`
+```
+Eigen::VectorXd polyfit_coeff = polyfit(xcarVals, ycarVals, 3);
+```
 
 These coefficients are then used to determine the cte, epsi, and also used inside cost function `FG_eval` to find the cost for cte and epsi that in turn used inside the `ipopt solver` to predict the steering angle and throttle.
 
-`          vector<double> ret_actuators = mpc.Solve(state_vector, polyfit_coeff);
-`
+```
+vector<double> ret_actuators = mpc.Solve(state_vector, polyfit_coeff);
+```
 
 
 ### Model Predictive Control with Latency

@@ -33,13 +33,13 @@ double ref_v = 60;
 const double Lf = 2.67;
 
 // Add multipliers for different cost components
-int nCostMultiplierCTE = 2000;
-int nCostMultiplierEPSI = 1500;
+int nCostMultiplierCTE = 200;
+int nCostMultiplierEPSI = 15;
 int nCostMultiplierV = 10;
-int nCostMultiplierDELTA = 2000000;
-int nCostMultiplierACC = 200;
-int nCostMultiplierDELTA_diff = 100;
-int nCostMultiplierACC_diff = 10;
+int nCostMultiplierDELTA = 2000;
+int nCostMultiplierACC = 1;
+int nCostMultiplierDELTA_diff = 10;
+int nCostMultiplierACC_diff = 1;
 
 //define the offsets for each component in vars Vector
 // Offsets when N = 5 as given in the lesson https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/338b458f-7ebf-449c-9ad1-611eb933b076/concepts/d3df10cc-797a-47ae-82c9-a39a597870d9

@@ -147,7 +147,7 @@ int main() {
 
           //Apply the throttle factor to the throttle (to reduce the speed where the steeing anle is high)
           double throttle_factor = mpc.MapThrottleToSteeringAngle(abs(steer_value));
-          throttle_factor = 1; //No correction seems required after reducing N to under 10
+          //throttle_factor = 1; //No correction seems required after reducing N to under 10
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"] = throttle_value*throttle_factor;
 

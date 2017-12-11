@@ -93,7 +93,32 @@ vector<double> ret_actuators = mpc.Solve(state_vector, polyfit_coeff);
 
 
 ### Model Predictive Control with Latency
-MPC controller receives the path coordinates from the emulator. MPC controller then converts them to car's coordinate system to predict the actuator values and also the MPC waypoints. MPC controller wait `100 msec` before sending the actuators to the emulator. However MPC controller has a `time step (dt) of 100 msec` and predicts the next way points and corresponding actuators. Since both the delay and the time difference between time steps within vars is 100 msec, the system is synchronized (between the predicted values and when they are received on the emulator side). I've played with receiving actuator values at different time steps and found that the current code inside `MPC::Solve()` worked correctly.
+MPC controller receives the path coordinates from the emulator. MPC controller then converts them to car's coordinate system to predict the actuator values and also the MPC waypoints. The program waits `100 msec` before sending the predicted actuator values to the emulator. This means the current predicted actuator values will be out dated, because these are invalid within the emulator context. To overcome this issue, I've pre-calculated state vector for the `current time+100 msec` time step so that the predicted actuator values will be valid.
+
+Here is the code (main.cpp; line# 130-160) that measures x, y, psi, v, cte and ePsi for the time step of `current time+100 msec` before sending the state vector to `MPC::Solve().
+
+```
+double delta = j[1]["steering_angle"];
+double a = j[1]["throttle"];
+
+positive yaw for MPC
+delta = -delta;
+double px_t1 = px + v*cos(psi)*latency;
+double py_t1 = py + v*sin(psi)*latency;
+double cte_t1 = cte + v*sin(epsi)*latency;
+double epsi_t1 = epsi + v*delta*latency/Lf;
+double psi_t1 = psi + v*delta*latency/Lf;
+double v_t1 = v + a*latency;
+
+Eigen::VectorXd  state_vector(6);
+state_vector << px_t1, py_t1, psi_t1, v_t1, cte_t1, epsi_t1;
+
+vector<double> ret_actuators = mpc.Solve(state_vector, polyfit_coeff);
+steer_value = ret_actuators[0];
+throttle_value = ret_actuators[1];
+```
+Now the returned actuator values are for the `current time+100 msec` time step and when they are sent after 100 msec delay, it is for the right timestep within the emulator.
+
 
 ---
 

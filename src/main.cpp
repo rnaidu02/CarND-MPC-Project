@@ -116,6 +116,10 @@ int main() {
           //Fit the converted local x and y way points to a poyfit to find 3rd odrer poynomial factors
           Eigen::VectorXd polyfit_coeff = polyfit(xcarVals, ycarVals, 3);
 
+          // This is the length from front to CoG that has a similar radius.
+          const double Lf = 2.67;
+          double latency = 0.1;  //seconds
+
           //move the reference to origin (origin being the car location)
           px = 0;
           py = 0;
@@ -125,8 +129,22 @@ int main() {
           // TODO: calculate the orientation error
           double epsi = psi - atan(polyfit_coeff[1]);
 
+          // Create state vector for next time step (in this case t1 which is 0.1 sec from t0)
+          // This helps to take care of 100 msec delay this program has before sending the
+          // actuator data to the emulator
+          double delta = j[1]["steering_angle"];
+          double a = j[1]["throttle"];
+          //  change of sign because turning left is negative sign in simulator but positive yaw for MPC
+          delta = -delta;
+          double px_t1 = px + v*cos(psi)*latency;
+          double py_t1 = py + v*sin(psi)*latency;
+          double cte_t1 = cte + v*sin(epsi)*latency;
+          double epsi_t1 = epsi + v*delta*latency/Lf;
+          double psi_t1 = psi + v*delta*latency/Lf;
+          double v_t1 = v + a*latency;
+
           Eigen::VectorXd  state_vector(6);
-          state_vector << px, py, psi, v, cte, epsi;
+          state_vector << px_t1, py_t1, psi_t1, v_t1, cte_t1, epsi_t1;
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -138,7 +156,7 @@ int main() {
           double throttle_value;
 
           vector<double> ret_actuators = mpc.Solve(state_vector, polyfit_coeff);
-          steer_value = -ret_actuators[0];
+          steer_value = ret_actuators[0];
           throttle_value = ret_actuators[1];
 
           json msgJson;
@@ -147,8 +165,8 @@ int main() {
 
           //Apply the throttle factor to the throttle (to reduce the speed where the steeing anle is high)
           double throttle_factor = mpc.MapThrottleToSteeringAngle(abs(steer_value));
-          //throttle_factor = 1; //No correction seems required after reducing N to under 10
-          msgJson["steering_angle"] = steer_value;
+          throttle_factor = 1; //No correction seems required after reducing N to under 10
+          msgJson["steering_angle"] = -steer_value;
           msgJson["throttle"] = throttle_value*throttle_factor;
 
           //Display the MPC predicted trajectory

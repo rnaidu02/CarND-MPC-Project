@@ -17,7 +17,7 @@ using CppAD::AD;
 size_t N = 9;
 double dt = 0.1;  //seconds
 
-// Set the reference valocity to 40
+// Set the reference valocity to 70 (tested up to 70 mph)
 double ref_v = 60;
 
 // This value assumes the model presented in the classroom is used.
@@ -317,7 +317,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   vector<double> x1 = {solution.x[delta_start], solution.x[a_start]};
 
   // Now add the mpc x and y, so that they can be used to display the way points on the emulator
-  for (uint i = 0; i < N; i++){
+  for (uint i = 0; i < N-1; i++){
       x1.push_back(solution.x[x_start+i]);
       x1.push_back(solution.x[y_start+i]);
   }
